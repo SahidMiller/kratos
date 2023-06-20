@@ -206,7 +206,6 @@ func (s *Strategy) Login(w http.ResponseWriter, r *http.Request, f *login.Flow, 
 		
 		urlOptions = append(urlOptions, oauth2.SetAuthURLParam("code_challenge", challenge.Challenge))
 		urlOptions = append(urlOptions, oauth2.SetAuthURLParam("code_challenge_method", challenge.ChallengeMethod))
-		// urlOptions = append(urlOptions, oauth2.SetAuthURLParam("code_verifier", challenge.Verifier))
 	}
 
 	if err := s.d.ContinuityManager().Pause(r.Context(), w, r, sessionName,
@@ -214,7 +213,7 @@ func (s *Strategy) Login(w http.ResponseWriter, r *http.Request, f *login.Flow, 
 			State:  state.String(),
 			FlowID: f.ID.String(),
 			Traits: p.Traits,
-			Challenge: challenge.Challenge,
+			Verifier: challenge.Verifier,
 		}),
 		continuity.WithLifespan(time.Minute*30)); err != nil {
 		return nil, s.handleError(w, r, f, pid, nil, err)

@@ -12,8 +12,6 @@ import (
 	"crypto/sha256"
 	b64 "encoding/base64"
 	"io"
-	"fmt"
-
 )
 
 type ProviderTwitter struct {
@@ -59,18 +57,20 @@ func (g *ProviderTwitter) AuthCodeURLOptions(r ider) []oauth2.AuthCodeOption {
 }
 
 func (g *ProviderTwitter) Challenge(ctx context.Context) (ProviderChallenge, error) {
-	verifier := randStringBytes(128)
+	verifier := SecureRandomBase64Encoded(32)
+	challenge := PkCEChallengeWithSHA256(verifier)
 	return ProviderChallenge{
+		Challenge: challenge,
+		//TODO: If challenge method is plain, then pass challenge as verifier 
+		ChallengeMethod: "s256",
 		Verifier: verifier,
-		Challenge: PkCEChallengeWithSHA256(verifier),
-		ChallengeMethod: "plain",
 	}, nil
 }
 
 func PkCEChallengeWithSHA256(verifier string) string {
-	sum := sha256.Sum256([]byte(verifier))
-	challenge := b64.RawURLEncoding.EncodeToString(sum[:])
-	return challenge
+	h := sha256.New()
+	h.Write([]byte(verifier))
+	return b64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
 func randStringBytes(n int) string {
@@ -88,12 +88,21 @@ func (g *ProviderTwitter) Claims(ctx context.Context, exchange *oauth2.Token, qu
 		Issuer:    "https://api.twitter.com/2/oauth2/token",
 		Name:      "test",
 		Nickname:  "test",
-		Email: "test@gmail.com",
+		Email: 	   "test@gmail.com",
 		EmailVerified: true,
 	}
 
 	rawClaims := make(map[string]interface{})
 
 	claims.RawClaims = rawClaims
+
 	return claims, nil
+}
+
+func SecureRandomBase64Encoded(entropyByte int) string {
+	b := make([]byte, entropyByte)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		panic(err)
+	}
+	return b64.RawURLEncoding.EncodeToString(b)
 }

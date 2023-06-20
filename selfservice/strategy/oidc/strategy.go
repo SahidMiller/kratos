@@ -126,7 +126,7 @@ type authCodeContainer struct {
 	State            string          `json:"state"`
 	Traits           json.RawMessage `json:"traits"`
 	TransientPayload json.RawMessage `json:"transient_payload"`
-	Challenge        string		  	 `json:"challenge"`
+	Verifier         string		  	 `json:"verifier"`
 }
 
 type State struct {
@@ -409,8 +409,8 @@ func (s *Strategy) handleCallback(w http.ResponseWriter, r *http.Request, ps htt
 
 	opts := []oauth2.AuthCodeOption{}
 
-	if cntnr.Challenge != "" {
-		opts = append(opts, oauth2.SetAuthURLParam("code_verifier", cntnr.Challenge))
+	if cntnr.Verifier != "" {
+		opts = append(opts, oauth2.SetAuthURLParam("code_verifier", cntnr.Verifier))
 	}
 
 	token, err := te.Exchange(r.Context(), code, opts...)
