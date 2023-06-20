@@ -358,11 +358,27 @@ func (s *Strategy) initLinkProvider(w http.ResponseWriter, r *http.Request, ctxU
 	}
 
 	state := generateState(ctxUpdate.Flow.ID.String()).String()
+	urlOptions :=  provider.AuthCodeURLOptions(req)
+
+	pc, ok := provider.(ProviderChallenger)
+	var challenge ProviderChallenge
+
+	if ok {
+		challenge, err = pc.Challenge(r.Context())
+		if err != nil {
+			return s.handleSettingsError(w, r, ctxUpdate, p, err)
+		}
+		
+		urlOptions = append(urlOptions, oauth2.SetAuthURLParam("code_challenge", challenge.Challenge))
+		urlOptions = append(urlOptions, oauth2.SetAuthURLParam("code_challenge_method", challenge.ChallengeMethod))
+	}
+
 	if err := s.d.ContinuityManager().Pause(r.Context(), w, r, sessionName,
 		continuity.WithPayload(&authCodeContainer{
 			State:  state,
 			FlowID: ctxUpdate.Flow.ID.String(),
 			Traits: p.Traits,
+			Verifier: challenge.Verifier,
 		}),
 		continuity.WithLifespan(time.Minute*30)); err != nil {
 		return s.handleSettingsError(w, r, ctxUpdate, p, err)
@@ -373,7 +389,7 @@ func (s *Strategy) initLinkProvider(w http.ResponseWriter, r *http.Request, ctxU
 		return err
 	}
 
-	codeURL := c.AuthCodeURL(state, append(UpstreamParameters(provider, up), provider.AuthCodeURLOptions(req)...)...)
+	codeURL := c.AuthCodeURL(state, append(UpstreamParameters(provider, up), urlOptions...)...)
 	if x.IsJSONRequest(r) {
 		s.d.Writer().WriteError(w, r, flow.NewBrowserLocationChangeRequiredError(codeURL))
 	} else {

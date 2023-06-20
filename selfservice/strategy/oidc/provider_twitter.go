@@ -12,6 +12,13 @@ import (
 	"crypto/sha256"
 	b64 "encoding/base64"
 	"io"
+
+	"github.com/ory/herodot"
+	"github.com/ory/x/httpx"
+	"github.com/hashicorp/go-retryablehttp"
+	"github.com/pkg/errors"
+	"fmt"
+	"encoding/json"
 )
 
 type ProviderTwitter struct {
@@ -83,13 +90,53 @@ func randStringBytes(n int) string {
 }
 
 func (g *ProviderTwitter) Claims(ctx context.Context, exchange *oauth2.Token, query url.Values) (*Claims, error) {
+
+	o, err := g.OAuth2(ctx)
+	if err != nil {
+		return nil, errors.WithStack(herodot.ErrInternalServerError.WithReasonf("%s", err))
+	}
+
+	client := g.reg.HTTPClient(ctx, httpx.ResilientClientDisallowInternalIPs(), httpx.ResilientClientWithClient(o.Client(ctx, exchange)))
+	req, err := retryablehttp.NewRequest("GET", "https://api.twitter.com/2/users/me?user.fields=profile_image_url", nil)
+	if err != nil {
+		return nil, errors.WithStack(herodot.ErrInternalServerError.WithReasonf("%s", err))
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", exchange.AccessToken))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.WithStack(herodot.ErrInternalServerError.WithReasonf("Salam 1: %s", err))
+	}
+	defer resp.Body.Close()
+
+	if err := logUpstreamError(g.reg.Logger(), resp); err != nil {
+		return nil, err
+	}
+	
+	type Data struct {
+		Name            string `json:"name"`
+		ID              string `json:"id"`
+		Username        string `json:"username"`
+		ProfileImageURL string `json:"profile_image_url"`
+	}
+
+	var response struct {
+		Data Data `json:"data"`
+	}
+	
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, errors.WithStack(herodot.ErrInternalServerError.WithReasonf("Salam 3: %s", err))
+	}
+
+
 	claims := &Claims{
-		Subject:   "user:123",
-		Issuer:    "https://api.twitter.com/2/oauth2/token",
-		Name:      "test",
-		Nickname:  "test",
-		Email: 	   "test@gmail.com",
-		EmailVerified: true,
+		Subject:   response.Data.ID,
+		Issuer:    o.Endpoint.TokenURL,
+		Name:      response.Data.Name,
+		Nickname:  response.Data.Username,
+		PreferredUsername: response.Data.Username,
+		Picture:  response.Data.ProfileImageURL,
 	}
 
 	rawClaims := make(map[string]interface{})
