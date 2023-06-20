@@ -192,11 +192,29 @@ func (s *Strategy) Login(w http.ResponseWriter, r *http.Request, f *login.Flow, 
 	if code, hasCode, _ := s.d.SessionTokenExchangePersister().CodeForFlow(r.Context(), f.ID); hasCode {
 		state.setCode(code.InitCode)
 	}
+
+	urlOptions :=  provider.AuthCodeURLOptions(req)
+
+	pc, ok := provider.(ProviderChallenger)
+	var challenge ProviderChallenge
+
+	if ok {
+		challenge, err = pc.Challenge(r.Context())
+		if err != nil {
+			return nil, s.handleError(w, r, f, pid, nil, err)
+		}
+		
+		urlOptions = append(urlOptions, oauth2.SetAuthURLParam("code_challenge", challenge.Challenge))
+		urlOptions = append(urlOptions, oauth2.SetAuthURLParam("code_challenge_method", challenge.ChallengeMethod))
+		// urlOptions = append(urlOptions, oauth2.SetAuthURLParam("code_verifier", challenge.Verifier))
+	}
+
 	if err := s.d.ContinuityManager().Pause(r.Context(), w, r, sessionName,
 		continuity.WithPayload(&authCodeContainer{
 			State:  state.String(),
 			FlowID: f.ID.String(),
 			Traits: p.Traits,
+			Challenge: challenge.Challenge,
 		}),
 		continuity.WithLifespan(time.Minute*30)); err != nil {
 		return nil, s.handleError(w, r, f, pid, nil, err)
@@ -212,7 +230,7 @@ func (s *Strategy) Login(w http.ResponseWriter, r *http.Request, f *login.Flow, 
 		return nil, err
 	}
 
-	codeURL := c.AuthCodeURL(state.String(), append(UpstreamParameters(provider, up), provider.AuthCodeURLOptions(req)...)...)
+	codeURL := c.AuthCodeURL(state.String(), append(UpstreamParameters(provider, up), urlOptions...)...)
 	if x.IsJSONRequest(r) {
 		s.d.Writer().WriteError(w, r, flow.NewBrowserLocationChangeRequiredError(codeURL))
 	} else {

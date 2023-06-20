@@ -23,6 +23,16 @@ type Provider interface {
 	AuthCodeURLOptions(r ider) []oauth2.AuthCodeOption
 }
 
+type ProviderChallenger interface {
+	Challenge(ctx context.Context) (ProviderChallenge, error)
+}
+
+type ProviderChallenge struct {
+	Verifier string
+	Challenge string
+	ChallengeMethod string
+}
+
 type TokenExchanger interface {
 	Exchange(ctx context.Context, code string, opts ...oauth2.AuthCodeOption) (*oauth2.Token, error)
 }

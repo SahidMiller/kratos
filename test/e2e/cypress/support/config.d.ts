@@ -204,6 +204,7 @@ export type Provider =
   | "auth0"
   | "vk"
   | "yandex"
+  | "twitter"
   | "apple"
   | "spotify"
   | "netid"

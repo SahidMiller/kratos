@@ -155,6 +155,8 @@ func (c ConfigurationCollection) Provider(id string, reg dependencies) (Provider
 				return NewProviderVK(&p, reg), nil
 			case addProviderName("yandex"):
 				return NewProviderYandex(&p, reg), nil
+			case addProviderName("twitter"):
+				return NewProviderTwitter(&p, reg), nil
 			case addProviderName("apple"):
 				return NewProviderApple(&p, reg), nil
 			case addProviderName("spotify"):

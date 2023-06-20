@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/oauth2"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -125,6 +126,7 @@ type authCodeContainer struct {
 	State            string          `json:"state"`
 	Traits           json.RawMessage `json:"traits"`
 	TransientPayload json.RawMessage `json:"transient_payload"`
+	Challenge        string		  	 `json:"challenge"`
 }
 
 type State struct {
@@ -405,7 +407,13 @@ func (s *Strategy) handleCallback(w http.ResponseWriter, r *http.Request, ps htt
 		}
 	}
 
-	token, err := te.Exchange(r.Context(), code)
+	opts := []oauth2.AuthCodeOption{}
+
+	if cntnr.Challenge != "" {
+		opts = append(opts, oauth2.SetAuthURLParam("code_verifier", cntnr.Challenge))
+	}
+
+	token, err := te.Exchange(r.Context(), code, opts...)
 	if err != nil {
 		s.forwardError(w, r, req, s.handleError(w, r, req, pid, nil, err))
 		return
