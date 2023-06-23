@@ -85,7 +85,7 @@ func (e *Verifier) do(w http.ResponseWriter, r *http.Request, i *identity.Identi
 
 		verificationFlow.State = verification.StateEmailSent
 
-		if err := strategy.PopulateVerificationMethod(r, verificationFlow); err != nil {
+		if err := strategy.PopulateVerificationMethod(r, verificationFlow, address.Value); err != nil {
 			return err
 		}
 

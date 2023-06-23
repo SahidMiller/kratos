@@ -37,7 +37,7 @@ func (s *Strategy) RegisterAdminVerificationRoutes(admin *x.RouterAdmin) {
 // If the flow's state is `sent_email`, the `code` input and the success notification is set
 // Otherwise, the default email input is added.
 // If the flow is a browser flow, the CSRF token is added to the UI.
-func (s *Strategy) PopulateVerificationMethod(r *http.Request, f *verification.Flow) error {
+func (s *Strategy) PopulateVerificationMethod(r *http.Request, f *verification.Flow, email string) error {
 	nodes := node.Nodes{}
 	switch f.State {
 	case verification.StateEmailSent:
@@ -61,6 +61,12 @@ func (s *Strategy) PopulateVerificationMethod(r *http.Request, f *verification.F
 		node.NewInputField("method", s.VerificationStrategyID(), node.CodeGroup, node.InputAttributeTypeSubmit).
 			WithMetaLabel(text.NewInfoNodeLabelSubmit()),
 	)
+	if f.State == verification.StateEmailSent && email != "" {
+		nodes.Append(
+			node.NewInputField("email", email, node.CodeGroup, node.InputAttributeTypeSubmit).
+				WithMetaLabel(text.NewInfoNodeResendOTP()),
+		)
+	}
 
 	f.UI.Nodes = nodes
 	if f.Type == flow.TypeBrowser {
@@ -232,15 +238,8 @@ func (s *Strategy) verificationHandleFormSubmission(w http.ResponseWriter, r *ht
 
 	f.State = verification.StateEmailSent
 
-	if err := s.PopulateVerificationMethod(r, f); err != nil {
+	if err := s.PopulateVerificationMethod(r, f, body.Email); err != nil {
 		return s.handleVerificationError(w, r, f, body, err)
-	}
-
-	if body.Email != "" {
-		f.UI.Nodes.Append(
-			node.NewInputField("email", body.Email, node.CodeGroup, node.InputAttributeTypeSubmit).
-				WithMetaLabel(text.NewInfoNodeResendOTP()),
-		)
 	}
 
 	if err := s.deps.VerificationFlowPersister().UpdateVerificationFlow(r.Context(), f); err != nil {

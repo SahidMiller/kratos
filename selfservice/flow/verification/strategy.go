@@ -27,7 +27,7 @@ type (
 	Strategy interface {
 		VerificationStrategyID() string
 		VerificationNodeGroup() node.UiNodeGroup
-		PopulateVerificationMethod(*http.Request, *Flow) error
+		PopulateVerificationMethod(*http.Request, *Flow, string) error
 		Verify(w http.ResponseWriter, r *http.Request, f *Flow) (err error)
 		SendVerificationEmail(context.Context, *Flow, *identity.Identity, *identity.VerifiableAddress) error
 	}

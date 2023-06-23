@@ -35,7 +35,7 @@ func (s *Strategy) RegisterPublicVerificationRoutes(public *x.RouterPublic) {
 func (s *Strategy) RegisterAdminVerificationRoutes(admin *x.RouterAdmin) {
 }
 
-func (s *Strategy) PopulateVerificationMethod(r *http.Request, f *verification.Flow) error {
+func (s *Strategy) PopulateVerificationMethod(r *http.Request, f *verification.Flow, email string) error {
 	f.UI.SetCSRF(s.d.GenerateCSRFToken(r))
 	f.UI.GetNodes().Upsert(
 		// v0.5: form.Field{Name: "email", Type: "email", Required: true}
