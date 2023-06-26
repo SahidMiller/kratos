@@ -1255,6 +1255,12 @@
                   "description": "Whether to notify recipients, if verification was requested for their address.",
                   "type": "boolean",
                   "default": false
+                },
+                "verify_verified_recipients": {
+                  "title": "Verify verified recipients",
+                  "description": "Whether to notify recipients, if verification was requested for their address.",
+                  "type": "boolean",
+                  "default": false
                 }
               }
             },

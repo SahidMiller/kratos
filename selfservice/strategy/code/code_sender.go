@@ -185,6 +185,28 @@ func (s *Sender) SendVerificationCode(ctx context.Context, f *verification.Flow,
 		return err
 	}
 
+	verifyVerifiedRecipients := s.deps.Config().SelfServiceFlowVerificationVerifyVerifiedRecipients(ctx)
+
+	if !verifyVerifiedRecipients {
+		isUnverified := true
+		for _, va := range i.VerifiableAddresses {
+			if va.Verified {
+				isUnverified = false
+				break;
+			}
+		}
+		if !isUnverified {
+			s.deps.Audit().
+				WithField("via", via).
+				WithField("strategy", "code").
+				WithSensitiveField("email_address", address).
+				WithField("was_notified", false).
+				Info("Address verification was requested for an already verified address.")
+			//Do nothing
+			return nil
+		}
+	}
+
 	if err := s.SendVerificationCodeTo(ctx, f, i, rawCode, code); err != nil {
 		return err
 	}

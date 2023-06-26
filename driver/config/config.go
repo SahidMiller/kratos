@@ -147,6 +147,7 @@ const (
 	ViperKeySelfServiceVerificationBeforeHooks               = "selfservice.flows.verification.before.hooks"
 	ViperKeySelfServiceVerificationUse                       = "selfservice.flows.verification.use"
 	ViperKeySelfServiceVerificationNotifyUnknownRecipients   = "selfservice.flows.verification.notify_unknown_recipients"
+	ViperKeySelfServiceVerificationVerifyVerifiedRecipients  = "selfservice.flows.verification.verify_verified_recipients"
 	ViperKeyDefaultIdentitySchemaID                          = "identity.default_schema_id"
 	ViperKeyIdentitySchemas                                  = "identity.schemas"
 	ViperKeyHasherAlgorithm                                  = "hashers.algorithm"
@@ -658,6 +659,10 @@ func (p *Config) SelfServiceFlowVerificationUse(ctx context.Context) string {
 
 func (p *Config) SelfServiceFlowVerificationNotifyUnknownRecipients(ctx context.Context) bool {
 	return p.GetProvider(ctx).BoolF(ViperKeySelfServiceVerificationNotifyUnknownRecipients, false)
+}
+
+func (p *Config) SelfServiceFlowVerificationVerifyVerifiedRecipients(ctx context.Context) bool {
+	return p.GetProvider(ctx).BoolF(ViperKeySelfServiceVerificationVerifyVerifiedRecipients, false)
 }
 
 func (p *Config) SelfServiceFlowSettingsBeforeHooks(ctx context.Context) []SelfServiceHook {
