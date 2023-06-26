@@ -28,6 +28,7 @@ import (
 
 var (
 	ErrHookAbortFlow = errors.New("aborted verification hook execution")
+	ErrAlreadyVerified    = errors.New("you are already verified")
 )
 
 type (

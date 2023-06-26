@@ -6,6 +6,7 @@ package verification
 import (
 	"net/http"
 	"time"
+	"fmt"
 
 	"github.com/ory/nosurf"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/ory/kratos/selfservice/errorx"
 	"github.com/ory/kratos/selfservice/flow"
 	"github.com/ory/kratos/x"
+	"github.com/ory/kratos/session"
 )
 
 const (
@@ -48,6 +50,8 @@ type (
 		x.CSRFTokenGeneratorProvider
 		x.WriterProvider
 		x.CSRFProvider
+		session.HandlerProvider
+		session.ManagementProvider
 
 		FlowPersistenceProvider
 		ErrorHandlerProvider
@@ -98,12 +102,41 @@ func (h *Handler) NewVerificationFlow(w http.ResponseWriter, r *http.Request, ft
 		return nil, err
 	}
 
+	verifyVerifiedRecipients := h.d.Config().SelfServiceFlowVerificationVerifyVerifiedRecipients(r.Context())
+
+	var userSession *session.Session
+	var unverifiedAddress identity.VerifiableAddress
+
+	if !verifyVerifiedRecipients {
+		sess, err := h.d.SessionManager().FetchFromRequest(r.Context(), r)
+		if e := new(session.ErrNoActiveSessionFound); errors.As(err, &e) {
+			//Continue
+		} else if sess != nil {
+			for _, va := range sess.Identity.VerifiableAddresses {
+				if !va.Verified {
+					unverifiedAddress = va
+					break
+				}
+				return nil, errors.WithStack(ErrAlreadyVerified)
+			}
+		}
+		userSession = sess
+	}
+
 	f, err := NewFlow(h.d.Config(), h.d.Config().SelfServiceFlowVerificationRequestLifespan(r.Context()), h.d.GenerateCSRFToken(r), r, strategy, ft)
 	if err != nil {
 		return nil, err
 	}
 	for _, o := range opts {
 		o(f)
+	}
+
+	//Pre-populate logged in user unverified address.
+	//Any previous code will fail but a new code can be resent on seeing error message.
+	//TODO: Display all unverified addresses?
+	if !verifyVerifiedRecipients && userSession != nil {
+		f.State = "sent_email"
+		strategy.PopulateVerificationMethod(r, f, unverifiedAddress.Value);
 	}
 
 	if err := h.d.VerificationExecutor().PreVerificationHook(w, r, f); err != nil {
@@ -193,7 +226,20 @@ func (h *Handler) createBrowserVerificationFlow(w http.ResponseWriter, r *http.R
 	}
 
 	req, err := h.NewVerificationFlow(w, r, flow.TypeBrowser)
-	if err != nil {
+	if errors.Is(err, ErrAlreadyVerified) {
+
+		returnTo, redirErr := x.SecureRedirectTo(r, h.d.Config().SelfServiceBrowserDefaultReturnTo(r.Context()),
+			x.SecureRedirectAllowSelfServiceURLs(h.d.Config().SelfPublicURL(r.Context())),
+			x.SecureRedirectAllowURLs(h.d.Config().SelfServiceBrowserAllowedReturnToDomains(r.Context())),
+		)
+		if redirErr != nil {
+			h.d.SelfServiceErrorManager().Forward(r.Context(), w, r, redirErr)
+			return
+		}
+
+		x.AcceptToRedirectOrJSON(w, r, h.d.Writer(), err, returnTo.String())
+		return
+	} else if err != nil {
 		h.d.Writer().WriteError(w, r, err)
 		return
 	}
