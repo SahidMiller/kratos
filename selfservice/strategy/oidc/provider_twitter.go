@@ -106,7 +106,7 @@ func (g *ProviderTwitter) Claims(ctx context.Context, exchange *oauth2.Token, qu
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, errors.WithStack(herodot.ErrInternalServerError.WithReasonf("Salam 1: %s", err))
+		return nil, errors.WithStack(herodot.ErrInternalServerError.WithReasonf("%s", err))
 	}
 	defer resp.Body.Close()
 
@@ -126,7 +126,7 @@ func (g *ProviderTwitter) Claims(ctx context.Context, exchange *oauth2.Token, qu
 	}
 	
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, errors.WithStack(herodot.ErrInternalServerError.WithReasonf("Salam 3: %s", err))
+		return nil, errors.WithStack(herodot.ErrInternalServerError.WithReasonf("%s", err))
 	}
 
 
