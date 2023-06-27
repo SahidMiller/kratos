@@ -6,7 +6,6 @@ package verification
 import (
 	"net/http"
 	"time"
-	"fmt"
 
 	"github.com/ory/nosurf"
 
@@ -102,12 +101,12 @@ func (h *Handler) NewVerificationFlow(w http.ResponseWriter, r *http.Request, ft
 		return nil, err
 	}
 
-	verifyVerifiedRecipients := h.d.Config().SelfServiceFlowVerificationVerifyVerifiedRecipients(r.Context())
+	allowReverification := h.d.Config().SelfServiceFlowVerificationAllowReverification(r.Context())
 
 	var userSession *session.Session
 	var unverifiedAddress identity.VerifiableAddress
 
-	if !verifyVerifiedRecipients {
+	if !allowReverification {
 		sess, err := h.d.SessionManager().FetchFromRequest(r.Context(), r)
 		if e := new(session.ErrNoActiveSessionFound); errors.As(err, &e) {
 			//Continue
@@ -134,7 +133,7 @@ func (h *Handler) NewVerificationFlow(w http.ResponseWriter, r *http.Request, ft
 	//Pre-populate logged in user unverified address.
 	//Any previous code will fail but a new code can be resent on seeing error message.
 	//TODO: Display all unverified addresses?
-	if !verifyVerifiedRecipients && userSession != nil {
+	if !allowReverification && userSession != nil {
 		f.State = "sent_email"
 		strategy.PopulateVerificationMethod(r, f, unverifiedAddress.Value);
 	}
